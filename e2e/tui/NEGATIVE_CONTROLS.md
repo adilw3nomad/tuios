@@ -5903,3 +5903,15 @@ gets a plain middle press, and a press the binding takes keeps its release.
 | The release decided by where it lands, as before the review, with the mouse-mode check kept at the press | `TestMousePaneKeepsPageKeysAndMiddleButton` (the pane receives a plain middle press and no release) | **caught** |
 | The mouse-mode check cut from `handleTerminalMouseBinding` | `TestMousePaneKeepsPageKeysAndMiddleButton` (the pane receives no middle press) | **caught** |
 | The `shift+pgup` default removed from `terminal_scroll_page_up` | `TestDefaultPageAndMiddleBindings/page-scroll` | **caught** |
+## A silent link is found, and the rail still opens its sessions
+
+Run on 2026-10-15 on Linux on branch `fix-host-wake-reconnect`, from upstream `main` (`f1257b28d`). The test is `TestASilentLinkIsFoundAndTheRailStillOpensItsSessions` in `host_reconnect_test.go`. It stops the far `tuios stdio-proxy` with SIGSTOP, so the pipe stays open and carries nothing. The first half clicks a rail session on that link and gives it 18 seconds. The second half leaves an attached session idle on a frozen link with the rail closed and gives the heartbeat 40 seconds. On the fixed build the click opens the session after 7.3 seconds, the idle link is found after 26 seconds, and it is back after 29. Each control cuts one wire from the fixed build, builds it, and runs the test.
+
+| Control | Build | Tests that fail | Verdict |
+| --- | --- | --- | --- |
+| `attempt` does not start `heartbeat` | mutant of this branch | the click half ("the session on a frozen host never opened after a click") | **caught** |
+| `openRemoteSession` does not send `retry-host` | mutant of this branch | the same, with the same message | **caught** |
+| `retry` on a link that is up wakes the dial wait instead of the heartbeat | mutant of this branch | the same, with the same message | **caught** |
+| `heartbeatMisses` raised to 1000, so only a sleep or a retry ends a link | mutant of this branch | the idle half ("nothing found an idle frozen link in 40 seconds"); the click half passes | **caught** |
+| The positive half | this branch | none | **guard** |
+

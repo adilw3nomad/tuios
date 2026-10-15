@@ -74,6 +74,8 @@ type SessionCreatedMsg struct {
 	// attach makes is empty, and switch-session's sessions get a first
 	// window, as they do on this machine (finishHostSwitch).
 	Create bool
+	// OpenGen is the rail click this dial answers, or 0. See host_open.go.
+	OpenGen uint64
 }
 
 // SessionKilledMsg carries the result of killing a session this client is not
@@ -1406,6 +1408,9 @@ func (m *OS) handleMsg(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 
 	case SessionCreatedMsg:
 		cmd := ListenForSessionCreate(m.sessionCreateChan())
+		if msg.OpenGen != 0 {
+			return m, tea.Batch(cmd, m.finishHostOpen(msg))
+		}
 		if msg.Switched {
 			m.finishHostSwitch(msg)
 			return m, cmd
@@ -1590,6 +1595,8 @@ func (m *OS) handleMsg(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		// most at risk of breaking.
 		m.applyFederationSnapshot(msg)
 		m.sidebarCache.invalidate()
+		// A rail click that waits for this machine dials when the link is up.
+		m.advanceHostOpen()
 		// A sign-in page the person asked for before the daemon had one
 		// opens on the snapshot that brings it.
 		signIn := m.takePendingSignIns()
